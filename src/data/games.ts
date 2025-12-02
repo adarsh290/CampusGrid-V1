@@ -31,7 +31,7 @@ export interface Game {
 
 export const games: Game[] = [
   {
-    id: "gta-v",
+    id: "692df002d827438565560b76",
     title: "Grand Theft Auto V",
     coverImage: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=600&fit=crop",
     heroImage: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1920&h=800&fit=crop",

@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Gamepad2, Mail, Lock } from "lucide-react";
+import { Gamepad2, Mail, Lock, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
-const Login = () => {
+const Signup = () => {
   const navigate = useNavigate();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validation
-    if (!email || !password) {
+    if (!username || !email || !password) {
       toast({
         title: "Validation Error",
         description: "Please fill in all fields.",
@@ -24,21 +25,30 @@ const Login = () => {
       return;
     }
 
+    if (password.length < 6) {
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 6 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, email, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(data.message || "Signup failed");
       }
 
       // Save token to localStorage
@@ -49,15 +59,15 @@ const Login = () => {
 
       // Show success toast
       toast({
-        title: "Welcome Back!",
-        description: "Successfully logged in to CampusGrid.",
+        title: "Account Created!",
+        description: "Welcome to CampusGrid. Redirecting...",
       });
 
       // Redirect to home
       navigate("/");
     } catch (error) {
       toast({
-        title: "Login Failed",
+        title: "Signup Failed",
         description: error instanceof Error ? error.message : "An error occurred. Please try again.",
         variant: "destructive",
       });
@@ -78,7 +88,7 @@ const Login = () => {
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-slow" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent/15 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }} />
 
-      {/* Login Card */}
+      {/* Signup Card */}
       <div className="relative w-full max-w-md">
         <div className="glass-card p-8">
           {/* Logo */}
@@ -93,12 +103,29 @@ const Login = () => {
               Campus<span className="text-primary">Grid</span>
             </h1>
             <p className="text-muted-foreground text-sm">
-              Sign in to access the game library
+              Create your account to get started
             </p>
           </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          {/* Signup Form */}
+          <form onSubmit={handleSignup} className="space-y-4">
+            {/* Username */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Username</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="johndoe"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10 bg-secondary/50 border-border/50 focus:border-primary/50"
+                  required
+                  minLength={3}
+                />
+              </div>
+            </div>
+
             {/* Email */}
             <div>
               <label className="text-sm font-medium mb-2 block">Email</label>
@@ -127,25 +154,29 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 bg-secondary/50 border-border/50 focus:border-primary/50"
                   required
+                  minLength={6}
                 />
               </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Must be at least 6 characters
+              </p>
             </div>
 
             {/* Submit */}
             <Button
               type="submit"
-              variant="neonGreen"
+              variant="neonPurple"
               size="lg"
               className="w-full"
-              disabled={!email || !password || isLoading}
+              disabled={!username || !email || !password || password.length < 6 || isLoading}
             >
               {isLoading ? (
                 <>
                   <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Logging in...
+                  Creating account...
                 </>
               ) : (
-                "Log In"
+                "Create Account"
               )}
             </Button>
           </form>
@@ -153,9 +184,9 @@ const Login = () => {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Don't have an account?{" "}
-              <Link to="/signup" className="text-primary hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link to="/login" className="text-primary hover:underline">
+                Log in
               </Link>
             </p>
           </div>
@@ -165,4 +196,6 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;
+
+
