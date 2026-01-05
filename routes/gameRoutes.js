@@ -7,6 +7,7 @@ import {
   updateGame,
   deleteGame,
   downloadGame,
+  searchGames,
 } from '../controllers/gameController.js';
 import { auth } from '../middleware/auth.js';
 import { admin } from '../middleware/admin.js';
@@ -14,11 +15,12 @@ import { admin } from '../middleware/admin.js';
 const router = express.Router();
 
 // Public routes
+router.get('/search', searchGames);
 router.get('/', getGames);
 
-// Download route (Public access - security handled by token in query string)
+// Download route (Protected with auth)
 // MUST come before /:id to avoid route conflicts
-router.get('/download', downloadGame);
+router.get('/download/:id', auth, downloadGame);
 
 // Download token route (Protected with auth)
 router.get('/:id/token', auth, getDownloadToken);

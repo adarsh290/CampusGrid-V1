@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { GameCard } from "@/components/GameCard";
 import { Navbar } from "@/components/Navbar";
-import { Sparkles } from "lucide-react";
 import { Game, User } from "@/types";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [games, setGames] = useState<Game[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +13,7 @@ const Index = () => {
   useEffect(() => {
     const fetchGames = async () => {
       try {
-        const response = await fetch("http://localhost:5000/api/games");
+        const response = await fetch("/api/games");
         const data = await response.json();
         
         const formattedGames = data.map((game: any) => ({
@@ -38,7 +39,7 @@ const Index = () => {
       }
 
       try {
-        const response = await fetch("http://localhost:5000/api/auth/me", {
+        const response = await fetch("/api/auth/me", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -68,7 +69,7 @@ const Index = () => {
     if (!token) return;
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/me", {
+      const response = await fetch("/api/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -96,19 +97,9 @@ const Index = () => {
         
         <div className="container relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
-              <Sparkles className="h-4 w-4" />
-              <span>Zero Latency LAN Distribution</span>
-            </div>
-            
             <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-white via-white/90 to-white/50">
               CampusGrid
             </h1>
-            
-            <p className="text-xl text-muted-foreground">
-              Download massive AAA games in minutes over the local intranet. 
-              No internet data caps. Pure speed.
-            </p>
           </div>
 
           {/* GAME GRID */}
@@ -120,7 +111,10 @@ const Index = () => {
                 <div key={game.id || game._id} className="animate-fade-in">
                   <GameCard 
                     game={game} 
-                    onViewDetails={() => console.log("View details", game.id || game._id)}
+                    onViewDetails={() => {
+                      const gameSlug = game.title.toLowerCase().replace(/ /g, '-');
+                      navigate(`/explore/${gameSlug}`);
+                    }}
                     userOwnedGames={currentUser?.library?.map((g: any) => g._id || g) || []}
                     onPurchaseSuccess={handlePurchaseSuccess}
                   />

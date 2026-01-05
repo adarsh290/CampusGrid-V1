@@ -1,12 +1,7 @@
-# Ignore heavy dependencies
 node_modules/
-**/node_modules/
-
-# Ignore secrets (IMPORTANT)
-.env
-**/.env
-
-# Ignore build files
 dist/
-build/
-.DS_Store
+.env
+*.zip
+*.exe
+# VERY IMPORTANT: Ignore your storage folder if it's inside the project
+CampusGrid_Storage/

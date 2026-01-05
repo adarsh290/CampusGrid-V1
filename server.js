@@ -5,6 +5,8 @@ import authRoutes from './routes/authRoutes.js';
 import gameRoutes from './routes/gameRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import downloadRoutes from './routes/downloadRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 import jwt from 'jsonwebtoken'; // Imported for the emergency token
 import User from './models/User.js'; // Imported for the emergency token
 
@@ -21,10 +23,29 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS middleware
+const allowedOrigins = [
+  'http://localhost',
+  'http://localhost:5173',
+  'http://localhost:8080',
+  'http://localhost:5000',
+  'http://172.25.7.114',
+  'http://172.25.7.114:5173',
+  'http://172.25.7.114:8080',
+  'http://172.25.7.114:5000',
+];
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  const origin = req.headers.origin;
+  
+  // Allow requests from allowed origins or if no origin (same-origin requests)
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Expose-Headers', 'Content-Disposition');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
@@ -35,9 +56,16 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+// DEBUG LOGGER: Paste this before your routes
+app.use((req, res, next) => {
+  console.log(`👉 INCOMING REQUEST: ${req.method} ${req.originalUrl}`);
+  next();
+});
 app.use('/api/games', gameRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/download', downloadRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

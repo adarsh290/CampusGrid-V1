@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Download, CheckCircle2, HardDrive, Play, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { LibraryCard } from "@/components/LibraryCard";
+import { Loader2, Gamepad2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 
 const Library = () => {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingGameId, setDownloadingGameId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // 1. FETCH REAL DATA
@@ -20,20 +19,16 @@ const Library = () => {
       if (!token) { window.location.href = "/login"; return; }
 
       try {
-        const response = await fetch("http://localhost:5000/api/auth/me", {
+        const response = await fetch("/api/auth/me", {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (response.ok) {
             const user = await response.json();
-            // Transform DB data to match your UI structure
+            // Transform DB data
             const formattedGames = user.library.map((game: any) => ({
               ...game,
               id: game._id,
-              // We create a "Fake" part so your UI layout stays perfect
-              downloadParts: [
-                { name: "Base Game Installer", size: "Unknown GB", downloaded: false }
-              ]
             }));
             setGames(formattedGames);
         }
@@ -46,24 +41,60 @@ const Library = () => {
     fetchLibrary();
   }, []);
 
-  // 2. REAL DOWNLOAD LOGIC
   const handleDownload = async (gameId: string) => {
+    if (!gameId) {
+      toast({ 
+        title: "Error", 
+        description: "Game ID is missing. Cannot download.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast({ 
+        title: "Login Required", 
+        description: "You must be logged in to download games.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setDownloadingGameId(gameId);
+    toast({ title: "Preparing Download...", description: "Please wait." });
+
     try {
-        const token = localStorage.getItem('token');
-        toast({ title: "Requesting Secure Link...", description: "Please wait." });
-        
-        const res = await fetch(`http://localhost:5000/api/games/${gameId}/token`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if(!res.ok) throw new Error("Failed to get token");
-        
-        const data = await res.json();
-        window.location.href = `http://localhost:5000/api/games/download?token=${data.token}`;
-        
-        toast({ title: "Download Started", description: "Check your browser downloads." });
-    } catch(err) {
-        toast({ title: "Error", description: "Could not start download.", variant: "destructive" });
+      // Step 1: Get download token from backend
+      const tokenResponse = await fetch(`/api/download/token/${gameId}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json().catch(() => ({ message: 'Failed to generate download token' }));
+        throw new Error(errorData.message || 'Failed to generate download token');
+      }
+
+      const { executionUrl } = await tokenResponse.json();
+
+      if (!executionUrl) {
+        throw new Error('No execution URL received from server');
+      }
+
+      // Step 2: Trigger browser download using window.location.href
+      toast({ title: "Download Starting", description: "Your download will begin shortly..." });
+      window.location.href = executionUrl;
+      
+    } catch(err: any) {
+      console.error("Download error:", err);
+      toast({ 
+        title: "Error", 
+        description: err.message || "Could not start download.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setDownloadingGameId(null);
     }
   };
 
@@ -84,110 +115,34 @@ const Library = () => {
           </div>
 
           {loading ? (
-             <div className="flex justify-center items-center h-64">
-               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             </div>
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
           ) : games.length === 0 ? (
-             /* EMPTY STATE */
-             <div className="text-center py-20 border border-border/50 rounded-xl bg-secondary/10">
-                <HardDrive className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-2xl font-bold mb-2">Library Empty</h3>
-                <Link to="/">
-                  <Button className="mt-4 bg-primary hover:bg-primary/90 text-white">Browse Store</Button>
-                </Link>
-             </div>
+            /* EMPTY STATE */
+            <div className="text-center py-20 border border-border/50 rounded-xl bg-secondary/10">
+              <Gamepad2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-2xl font-bold mb-2 text-foreground">Your library is empty</h3>
+              <p className="text-muted-foreground mb-6">Visit the Store to add games!</p>
+              <Link to="/">
+                <Button className="bg-primary hover:bg-primary/90 text-white">
+                  Browse Store
+                </Button>
+              </Link>
+            </div>
           ) : (
-             /* LIBRARY GRID */
-             <div className="space-y-6">
-                {games.map((game, index) => {
-                  // Default progress logic (since we don't track real parts yet)
-                  const progress = 0; 
-                  const isComplete = false;
-
-                  return (
-                    <div
-                      key={game.id}
-                      className={cn(
-                        "glass-card p-6 animate-fade-in",
-                        "hover:border-primary/30 transition-all duration-300"
-                      )}
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <div className="flex flex-col md:flex-row gap-6">
-                        {/* Cover */}
-                        <div className="shrink-0">
-                          <img
-                            src={game.coverImage}
-                            alt={game.title}
-                            className="w-32 h-44 object-cover rounded-lg shadow-lg"
-                          />
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4 mb-4">
-                            <div>
-                              <h3 className="font-display text-xl font-bold mb-1">{game.title}</h3>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <HardDrive className="h-4 w-4" />
-                                  {game.fileSize || "N/A"}
-                                </span>
-                                <Badge variant="outline" className="text-xs">{game.genre}</Badge>
-                              </div>
-                            </div>
-
-                            {/* MAIN ACTION BUTTON */}
-                            <Button 
-                                className="shrink-0 bg-primary hover:bg-primary/90 text-white shadow-[0_0_15px_rgba(124,58,237,0.3)]"
-                                onClick={() => handleDownload(game.id)}
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download Installer
-                            </Button>
-                          </div>
-
-                          {/* Progress Bar (Visual Only for now) */}
-                          <div className="mb-4">
-                            <div className="flex items-center justify-between text-sm mb-2">
-                              <span className="text-muted-foreground">Installation Status</span>
-                              <span className="font-medium text-primary">Not Installed</span>
-                            </div>
-                            <Progress value={0} className="h-2 bg-secondary" />
-                          </div>
-
-                          {/* Parts List (Visual Only) */}
-                          <div className="space-y-2">
-                            {game.downloadParts.map((part: any, partIndex: number) => (
-                              <div
-                                key={partIndex}
-                                className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
-                                  <div>
-                                    <p className="font-medium text-sm">{part.name}</p>
-                                    <p className="text-xs text-muted-foreground">Single File Archive</p>
-                                  </div>
-                                </div>
-                                <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="text-primary hover:text-primary hover:bg-primary/10"
-                                    onClick={() => handleDownload(game.id)}
-                                >
-                                  <Download className="h-4 w-4 mr-1" />
-                                  Get
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-             </div>
+            /* LIBRARY GRID */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {games.map((game, index) => (
+                <div key={game.id || game._id} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                  <LibraryCard
+                    game={game}
+                    onDownload={handleDownload}
+                    loading={downloadingGameId === (game.id || game._id)}
+                  />
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </main>

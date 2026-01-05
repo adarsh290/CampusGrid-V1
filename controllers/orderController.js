@@ -1,5 +1,7 @@
 import User from '../models/User.js';
 import Game from '../models/Game.js';
+import Order from '../models/Order.js';
+import AuditLog from '../models/AuditLog.js';
 
 // @desc    Purchase a game
 // @route   POST /api/orders/buy
@@ -45,6 +47,25 @@ export const purchaseGame = async (req, res) => {
     user.walletBalance -= game.price;
     user.library.push(gameId);
     await user.save();
+
+    // Create order/transaction record for revenue tracking
+    await Order.create({
+      user: userId,
+      game: gameId,
+      price: game.price,
+      username: user.username,
+      gameTitle: game.title,
+    });
+
+    // Create audit log for purchase
+    await AuditLog.create({
+      type: 'PURCHASE',
+      targetUser: user.username,
+      targetUserId: userId,
+      gamePurchased: game.title,
+      gameId: gameId,
+      amount: game.price,
+    });
 
     // Populate library to return full game details
     await user.populate('library');

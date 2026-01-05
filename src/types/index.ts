@@ -12,11 +12,22 @@ export interface Game {
   id?: string;
   title: string;
   description: string;
+  developer?: string;
   price: number;
   genre: string;
   coverImage: string;
+  screenshots?: string[];
+  systemRequirements?: {
+    os: string;
+    processor: string;
+    memory: string;
+    graphics: string;
+    storage: string;
+  };
   localFilePath?: string;
   rating?: number;
   fileSize?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
