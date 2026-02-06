@@ -1,6 +1,28 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
 
-const gameSchema = new mongoose.Schema({
+export interface ISystemRequirements {
+  os: string;
+  processor: string;
+  memory: string;
+  graphics: string;
+  storage: string;
+}
+
+export interface IGame extends Document {
+  title: string;
+  description: string;
+  developer: string;
+  price: number;
+  coverImage?: string;
+  screenshots: string[];
+  genre: string;
+  systemRequirements: ISystemRequirements;
+  localFilePath?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const gameSchema = new Schema<IGame>({
   title: {
     type: String,
     required: [true, 'Game title is required'],
@@ -50,9 +72,6 @@ const gameSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-const Game = mongoose.model('Game', gameSchema);
+const Game: Model<IGame> = mongoose.model<IGame>('Game', gameSchema);
 
 export default Game;
-
-
-

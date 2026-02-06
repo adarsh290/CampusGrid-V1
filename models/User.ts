@@ -1,7 +1,29 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { IGame } from './Game.ts'; // Assuming Game.ts exports an IGame interface
 
-const userSchema = new mongoose.Schema({
+// Interface for User methods
+export interface IUserMethods {
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+// Interface for the User document
+export interface IUser extends Document, IUserMethods {
+  username: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'user';
+  library: mongoose.Types.ObjectId[] | IGame[];
+  walletBalance: number;
+  wallet: number; // This seems redundant with walletBalance, but keeping it per original schema
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Create a new Model type that knows about IUserMethods
+type UserModel = Model<IUser, {}, IUserMethods>;
+
+const userSchema = new Schema<IUser, UserModel, IUserMethods>({
   username: {
     type: String,
     required: [true, 'Username is required'],
@@ -29,7 +51,7 @@ const userSchema = new mongoose.Schema({
     default: 'user',
   },
   library: [{
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'Game',
   }],
   walletBalance: {
@@ -47,7 +69,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre<IUser>('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
   }
@@ -58,13 +80,10 @@ userSchema.pre('save', async function(next) {
 });
 
 // Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
+const User = mongoose.model<IUser, UserModel>('User', userSchema);
 
 export default User;
-
-
-

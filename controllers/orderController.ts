@@ -1,35 +1,37 @@
-import User from '../models/User.js';
-import Game from '../models/Game.js';
+import { Request, Response } from 'express';
+import User, { IUser } from '../models/User.js';
+import Game, { IGame } from '../models/Game.js';
 import Order from '../models/Order.js';
 import AuditLog from '../models/AuditLog.js';
 
 // @desc    Purchase a game
 // @route   POST /api/orders/buy
 // @access  Private
-export const purchaseGame = async (req, res) => {
+export const purchaseGame = async (req: Request, res: Response) => {
   try {
     const { gameId } = req.body;
-    const userId = req.user.id;
+    
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized' });
+    }
+    const userId = req.user._id;
 
     if (!gameId) {
       return res.status(400).json({ message: 'Game ID is required' });
     }
 
-    // Check if game exists
-    const game = await Game.findById(gameId);
+    const game: IGame | null = await Game.findById(gameId);
     
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
-    // Get user with library and wallet balance
-    const user = await User.findById(userId);
+    const user: IUser | null = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Check if user already owns the game
     const alreadyOwns = user.library.some(
       (id) => id.toString() === gameId
     );
@@ -38,17 +40,14 @@ export const purchaseGame = async (req, res) => {
       return res.status(400).json({ message: 'You already own this game' });
     }
 
-    // Check if user has sufficient funds
     if (user.walletBalance < game.price) {
       return res.status(400).json({ message: 'Insufficient Funds' });
     }
 
-    // Deduct price from wallet and add game to library
     user.walletBalance -= game.price;
-    user.library.push(gameId);
+    user.library.push(game._id);
     await user.save();
 
-    // Create order/transaction record for revenue tracking
     await Order.create({
       user: userId,
       game: gameId,
@@ -57,7 +56,6 @@ export const purchaseGame = async (req, res) => {
       gameTitle: game.title,
     });
 
-    // Create audit log for purchase
     await AuditLog.create({
       type: 'PURCHASE',
       targetUser: user.username,
@@ -67,15 +65,14 @@ export const purchaseGame = async (req, res) => {
       amount: game.price,
     });
 
-    // Populate library to return full game details
-    await user.populate('library');
+    await user.populate<{ library: IGame[] }>('library');
 
     res.status(200).json({
       message: 'Game purchased successfully',
       walletBalance: user.walletBalance,
       library: user.library,
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -83,21 +80,26 @@ export const purchaseGame = async (req, res) => {
 // @desc    Get user's library
 // @route   GET /api/orders/library
 // @access  Private
-export const getLibrary = async (req, res) => {
+export const getLibrary = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user.id).populate('library');
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized' });
+    }
+    
+    const user = await User.findById(req.user._id).populate<{ library: IGame[] }>('library');
+
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
     
     res.json({
       library: user.library.map(game => {
-        const gameObj = game.toObject();
+        const gameObj: any = game.toObject();
         delete gameObj.localFilePath; // Ensure localFilePath is never sent
         return gameObj;
       }),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
-
-
-

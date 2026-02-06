@@ -1,30 +1,34 @@
-import Game from '../models/Game.js';
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
-import path from 'path';
+import { Request, Response } from 'express';
+import Game, { IGame } from '../models/Game.js';
+import User, { IUser } from '../models/User.js';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 
 // @desc    Generate download token (Download Ticket)
 // @route   GET /api/download/token/:gameId
 // @access  Private
-export const getDownloadToken = async (req, res) => {
+export const getDownloadToken = async (req: Request, res: Response) => {
   try {
-    const gameId = req.params.gameId;
-    const userId = req.user.id;
+    const { gameId } = req.params;
+
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+    const userId = req.user._id;
 
     // Verify game exists
-    const game = await Game.findById(gameId);
+    const game: IGame | null = await Game.findById(gameId);
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
     // Verify user owns the game
-    const user = await User.findById(userId);
+    const user: IUser | null = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     const ownsGame = user.library.some(
-      (game) => game.toString() === gameId
+      (libGameId) => libGameId.toString() === gameId
     );
 
     if (!ownsGame) {
@@ -38,36 +42,38 @@ export const getDownloadToken = async (req, res) => {
       { expiresIn: '1m' }
     );
 
-    // Return the execution URL
     const executionUrl = `/api/download/execute?token=${token}`;
     
     res.json({ executionUrl });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Token generation error:', error);
     res.status(500).json({ message: 'Failed to generate download token' });
   }
 };
 
+interface DownloadTokenPayload extends JwtPayload {
+  gameId: string;
+  userId: string;
+}
+
 // @desc    Execute download (Public route with token verification)
 // @route   GET /api/download/execute
 // @access  Public (secured by token in query string)
-export const executeDownload = async (req, res) => {
+export const executeDownload = async (req: Request, res: Response) => {
   try {
-    // Get token from query string
-    const token = req.query.token;
+    const { token } = req.query;
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return res.status(403).json({ message: 'Download token required' });
     }
 
-    // Verify JWT token
-    let decoded;
+    let decoded: DownloadTokenPayload;
     try {
       decoded = jwt.verify(
         token,
         process.env.JWT_SECRET || 'your-secret-key-change-in-production'
-      );
-    } catch (error) {
+      ) as DownloadTokenPayload;
+    } catch (error: any) {
       if (error.name === 'TokenExpiredError') {
         return res.status(403).json({ message: 'Download token expired' });
       }
@@ -76,8 +82,7 @@ export const executeDownload = async (req, res) => {
 
     const { gameId } = decoded;
 
-    // Find game WITH localFilePath selected (select: false by default)
-    const game = await Game.findById(gameId).select('+localFilePath');
+    const game: IGame | null = await Game.findById(gameId).select('+localFilePath');
 
     if (!game) {
       console.error(`❌ Download Error: Game ID ${gameId} not found`);
@@ -89,26 +94,25 @@ export const executeDownload = async (req, res) => {
       return res.status(404).json({ message: 'Game file path is missing in database' });
     }
 
-    // 1. Get the full path from DB (e.g., "D:/CampusGrid_Storage/test.txt")
     const fullPath = game.localFilePath;
-
-    // 2. Extract just the filename (e.g., "test.txt")
-    // standardizes slashes to forward slashes first, then splits
     const fileName = fullPath.replace(/\\/g, '/').split('/').pop();
+
+    if (!fileName) {
+        console.error(`❌ Download Error: Could not extract filename from path "${fullPath}"`);
+        return res.status(500).json({ message: 'Could not determine filename' });
+    }
 
     console.log(`✅ Serving File: ${fileName}`);
     console.log(`   Source Path: ${fullPath}`);
 
-    // 3. Tell Nginx to send the file via X-Accel-Redirect
     res.setHeader('X-Accel-Redirect', `/protected-files/${fileName}`);
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.end();
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("🔥 CRITICAL DOWNLOAD ERROR:", error);
     if (!res.headersSent) {
       res.status(500).json({ message: 'Server Error during download' });
     }
   }
 };
-

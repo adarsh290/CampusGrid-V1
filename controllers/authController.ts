@@ -1,8 +1,10 @@
-import User from '../models/User.js';
+import { validationResult } from 'express-validator';
+import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
+import User, { IUser } from '../models/User.js';
 
 // Generate JWT Token
-const generateToken = (id) => {
+const generateToken = (id: mongoose.Types.ObjectId): string => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key-change-in-production', {
     expiresIn: '30d',
   });
@@ -11,7 +13,7 @@ const generateToken = (id) => {
 // @desc    Register a new user
 // @route   POST /api/auth/signup
 // @access  Public
-export const signup = async (req, res) => {
+export const signup = async (req: Request, res: Response) => {
   try {
     const { username, email, password, role } = req.body;
 
@@ -23,7 +25,7 @@ export const signup = async (req, res) => {
     }
 
     // Create user
-    const user = await User.create({
+    const user: IUser = await User.create({
       username,
       email,
       password,
@@ -44,7 +46,7 @@ export const signup = async (req, res) => {
         library: user.library,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(400).json({ message: error.message });
   }
 };
@@ -52,7 +54,7 @@ export const signup = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-export const login = async (req, res) => {
+export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -84,7 +86,7 @@ export const login = async (req, res) => {
         library: user.library,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -92,10 +94,19 @@ export const login = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-export const getMe = async (req, res) => {
+export const getMe = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user.id).populate('library');
+    // req.user is populated by the auth middleware
+    if (!req.user) {
+      return res.status(401).json({ message: 'Not authorized' });
+    }
+
+    const user = await User.findById(req.user._id).populate('library');
     
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
     res.json({
       id: user._id,
       username: user.username,
@@ -104,7 +115,7 @@ export const getMe = async (req, res) => {
       walletBalance: user.walletBalance,
       library: user.library,
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -112,9 +123,9 @@ export const getMe = async (req, res) => {
 // @desc    Get all users (Admin only)
 // @route   GET /api/admin/users
 // @access  Private/Admin
-export const getAllUsers = async (req, res) => {
+export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.find().select('-password').populate('library');
+    const users: IUser[] = await User.find().select('-password').populate('library');
     
     res.json(
       users.map(user => ({
@@ -126,7 +137,7 @@ export const getAllUsers = async (req, res) => {
         library: user.library,
       }))
     );
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -134,7 +145,7 @@ export const getAllUsers = async (req, res) => {
 // @desc    Add funds to user wallet (Admin only)
 // @route   POST /api/admin/users/:id/funds
 // @access  Private/Admin
-export const addFunds = async (req, res) => {
+export const addFunds = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { amount } = req.body;
@@ -149,17 +160,14 @@ export const addFunds = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.walletBalance += amount;
+    user.walletBalance += Number(amount);
     await user.save();
 
     res.json({
       message: 'Funds added successfully',
       walletBalance: user.walletBalance,
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
-
-
-

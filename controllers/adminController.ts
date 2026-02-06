@@ -1,13 +1,18 @@
-import User from '../models/User.js';
-import Order from '../models/Order.js';
-import AuditLog from '../models/AuditLog.js';
+import { Request, Response } from 'express';
+import User, { IUser } from '../models/User.js';
+import Order, { IOrder } from '../models/Order.js';
+import AuditLog, { IAuditLog } from '../models/AuditLog.js';
 
 // @desc    Top up user wallet
 // @route   POST /api/admin/topup
 // @access  Private/Admin
-export const topUpUser = async (req, res) => {
+export const topUpUser = async (req: Request, res: Response) => {
   try {
     const { userId, amount } = req.body;
+    
+    if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized' });
+    }
 
     if (!userId || !amount) {
       return res.status(400).json({ message: 'User ID and amount are required' });
@@ -17,24 +22,25 @@ export const topUpUser = async (req, res) => {
       return res.status(400).json({ message: 'Amount must be positive' });
     }
 
-    const user = await User.findById(userId);
+    const user: IUser | null = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Get admin user for audit log
-    const adminUser = await User.findById(req.user.id);
+    const adminUser: IUser | null = await User.findById(req.user._id);
     const adminName = adminUser ? adminUser.username : 'Unknown';
 
-    // Increment wallet balance using $inc
-    const updatedUser = await User.findByIdAndUpdate(
+    const updatedUser: IUser | null = await User.findByIdAndUpdate(
       userId,
       { $inc: { walletBalance: amount } },
       { new: true }
     ).select('-password');
 
-    // Create audit log for top-up
+    if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found after update' });
+    }
+
     await AuditLog.create({
       type: 'TOP_UP',
       adminName: adminName,
@@ -53,7 +59,7 @@ export const topUpUser = async (req, res) => {
         walletBalance: updatedUser.walletBalance,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -61,10 +67,9 @@ export const topUpUser = async (req, res) => {
 // @desc    Get platform revenue statistics
 // @route   GET /api/admin/revenue
 // @access  Private/Admin
-export const getRevenue = async (req, res) => {
+export const getRevenue = async (req: Request, res: Response) => {
   try {
-    // Aggregate total revenue and total games sold
-    const revenueStats = await Order.aggregate([
+    const revenueStats: { _id: null; totalRevenue: number; totalGamesSold: number }[] = await Order.aggregate([
       {
         $group: {
           _id: null,
@@ -74,8 +79,7 @@ export const getRevenue = async (req, res) => {
       },
     ]);
 
-    // Get recent transactions (last 20)
-    const recentTransactions = await Order.find()
+    const recentTransactions: IOrder[] = await Order.find()
       .sort({ createdAt: -1 })
       .limit(20)
       .select('username gameTitle price createdAt')
@@ -93,7 +97,7 @@ export const getRevenue = async (req, res) => {
         date: order.createdAt,
       })),
     });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -101,25 +105,22 @@ export const getRevenue = async (req, res) => {
 // @desc    Get audit logs
 // @route   GET /api/admin/logs
 // @access  Private/Admin
-export const getLogs = async (req, res) => {
+export const getLogs = async (req: Request, res: Response) => {
   try {
     const { type } = req.query;
 
-    // Build query
-    const query = {};
+    const query: Partial<IAuditLog> = {};
     if (type && (type === 'PURCHASE' || type === 'TOP_UP')) {
       query.type = type;
     }
 
-    // Fetch logs sorted by date (newest first)
-    const logs = await AuditLog.find(query)
+    const logs: IAuditLog[] = await AuditLog.find(query)
       .sort({ createdAt: -1 })
-      .limit(100) // Limit to 100 most recent logs
+      .limit(100)
       .lean();
 
     res.json(logs);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
-

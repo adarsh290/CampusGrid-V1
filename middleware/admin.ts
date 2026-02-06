@@ -1,4 +1,6 @@
-export const admin = (req, res, next) => {
+import { Request, Response, NextFunction } from 'express';
+
+export const admin = (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
@@ -9,6 +11,3 @@ export const admin = (req, res, next) => {
 
   next();
 };
-
-
-
