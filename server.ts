@@ -1,9 +1,9 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+import compression from 'compression';
 import authRoutes from './routes/authRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import gameRoutes from './routes/gameRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import jwt from 'jsonwebtoken'; // Imported for the emergency token
 import User from './models/User.js'; // Imported for the emergency token
@@ -34,7 +34,9 @@ const orderLimiter = rateLimit({
 });
 
 app.use(express.json());
+app.use(compression());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public', { maxAge: '1y', immutable: true }));
 
 // CORS middleware with strict origin validation
 const allowedOrigins = [
