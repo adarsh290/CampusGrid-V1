@@ -1,98 +1,72 @@
 # CampusGrid - A Full-Stack Game Store Platform
 
-CampusGrid is a full-stack web application that serves as a digital storefront for games. It features a React frontend, a Node.js/Express backend, and a complete Docker-based environment for easy setup and deployment.
+CampusGrid is a digital storefront designed to serve large game files (50GB+) over a local network (LAN). This project has been optimized for deployment on **Linux (Fedora/Ubuntu)** using Docker.
 
-## Technologies Used
+## 🚀 Quick Start (Linux/Fedora)
 
--   **Frontend:** React, Vite, TypeScript, Tailwind CSS, shadcn-ui
--   **Backend:** Node.js, Express.js, TypeScript
--   **Database:** MongoDB
--   **Containerization:** Docker, Docker Compose
--   **Web Server / Proxy:** NGINX
+The easiest way to get the site running on your network is to use the included deployment script.
 
-## Prerequisites
+### 1. Run the Deployment Script
+In your terminal, run:
+```bash
+chmod +x deploy.sh
+./deploy.sh
+```
+*This script will automatically configure your firewall, set up storage, build the containers, and seed the database.*
 
-Before you begin, ensure you have the following installed on your system:
--   [Node.js](https://nodejs.org/) (v18 or later)
--   [Docker](https://www.docker.com/products/docker-desktop/) and Docker Compose
+### 2. Access the Site
+Once the script finishes, it will provide you with your local IP address. Access the site at:
+**`http://<your-ip>:8080`**
 
-**Security Enhancements**
-- **Strict CORS whitelist** – only origins listed in the allowed list are accepted; others receive a 403 response.
-- **JWT secret enforcement** – the server will exit on start‑up if `JWT_SECRET` is not defined.
-- **Rate limiting** – authentication and order endpoints are limited to 100 requests per 15 minutes per IP via `express-rate-limit`.
-- **Input validation** – signup, login, and admin game create/update routes validate request bodies using `express-validator` and return clear error messages.
-- **Generic error handling** – internal stack traces are logged server‑side but not exposed to clients.
-- **Health‑check endpoint** – `/api/health` returns service status; Docker Compose includes a health‑check that pings this endpoint.
+### 3. Managing the Site
+- **Start:** `./deploy.sh`
+- **Stop:** `docker compose stop`
+- **Complete Shutdown:** `docker compose down`
+- **View Logs:** `docker compose logs -f`
 
+---
 
-Before you begin, ensure you have the following installed on your system:
--   [Node.js](https://nodejs.org/) (v18 or later)
--   [Docker](https://www.docker.com/products/docker-desktop/) and Docker Compose
+## 📁 Managing Game Files
 
-## Getting Started with Docker
+Game files are served from the `./storage` directory on your host machine.
 
-This is the recommended way to run the application for a production‑like environment on your college network.
+1.  **Add Games:** Drop your `.zip` or game folders into the `storage/` folder.
+2.  **Admin Panel:** When adding a game in the browser, use the path: `/storage/your-game-file.zip`.
+3.  **Metadata:** Screenshots and covers are automatically stored in `storage/metadata`.
 
-**1️⃣ Environment Variables**
+---
 
-The application relies on a `.env` file for the database connection and secret keys.
+## 🛠️ Technologies & Security
 
-```sh
-cp .env.example .env
+-   **Frontend:** React (TypeScript), Vite, Tailwind CSS, shadcn-ui.
+-   **Backend:** Node.js (TypeScript), Express.js.
+-   **Database:** MongoDB.
+-   **Proxy:** NGINX (handles large file streaming via `X-Accel-Redirect`).
+-   **Security:**
+    -   JWT Authentication with strict enforcement.
+    -   Rate limiting on Auth/Order endpoints.
+    -   SELinux compatible Docker mounts (using `:Z` flags).
+    -   Flexible CORS for LAN-wide access.
+
+---
+
+## 🖥️ Database Commands
+
+To inspect users or roles, enter the MongoDB shell:
+```bash
+docker exec -it campusgrid-mongo mongosh campusgrid
 ```
 
-Edit the new `.env` and set:
-- `MONGODB_URI` – your MongoDB connection string.
-- `JWT_SECRET` – a strong secret. The server will refuse to start if this variable is missing.
-- Any other configuration you need for your network.
+- **Count Users:** `db.users.countDocuments()`
+- **Find Admins:** `db.users.find({ role: "admin" })`
+- **Make Admin:** `db.users.updateOne({ username: "NAME" }, { $set: { role: "admin" } })`
 
-**2️⃣ Build and Run**
+---
 
-```sh
-docker-compose up --build
-```
+## 🧪 Development & Testing
 
-Docker Compose now includes a **health‑check** for the backend service, which ensures the API is reachable before NGINX starts routing traffic.
+- **Local Dev (Frontend):** `npm install && npm run dev`
+- **Local Dev (Backend):** `npm run server:dev`
+- **Run Tests:** `npm test`
 
-**What you get**
-- The backend runs with **strict CORS** (only whitelisted origins are allowed).
-- **Rate limiting** (100 requests per 15 min per IP) protects the auth and order endpoints.
-- **Input validation** on signup, login, and game create/update routes prevents malformed data.
-- Generic error responses hide internal stack traces.
-
-The application will be accessible at **http://localhost:8080** (or the IP/port you configure in NGINX).
-
-## Development
-
-The Docker Compose setup orchestrates three main services:
-
--   `nginx`: The main entry point for the application, accessible at `http://localhost:8080`. It serves the frontend and proxies API requests to the backend.
--   `backend`: The Node.js/Express API server. It is not directly accessible from the host but communicates with the NGINX service.
--   `frontend`: This service is responsible for building the static frontend assets that NGINX serves.
-
-For frontend development with hot-reloading, you can run the Vite dev server separately:
-1. Navigate to the project root.
-2. Install dependencies: `npm install`.
-3. Run the dev server: `npm run dev`.
-The frontend will be available at `http://localhost:5173`.
-
-## Testing
-
-This project uses [Vitest](https://vitest.dev/) for unit and component testing.
-
-To run the entire test suite once, use the following command:
-
-```sh
-npm test
-```
-
-## Project Structure Overview
-
--   `nginx/`: Contains the NGINX configuration.
--   `scripts/`: Contains utility scripts for database seeding and admin tasks.
--   `src/`: The React frontend application source code.
--   `controllers/`, `models/`, `routes/`, `middleware/`: The backend Express.js application, now written in TypeScript.
--   `types/`: Contains shared TypeScript type definitions, including augmentations for Express.
--   `backend.Dockerfile`, `frontend.Dockerfile`: Docker build configurations for the services.
--   `docker-compose.yml`: Orchestrates the entire application stack.
--   `tsconfig.backend.json`: TypeScript configuration for the Node.js backend.
+*Note: For the backend to run outside of Docker, you must have a local MongoDB instance running and update your `.env` file accordingly.*
