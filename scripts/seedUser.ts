@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import User from './models/User.js';
-import Game from './models/Game.js';
+import User from '../models/User.js';
+import Game from '../models/Game.js';
 
 dotenv.config();
 
 const run = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI as string);
     console.log("Connected to DB...");
 
     // 1. Find the Test Game
@@ -32,8 +32,8 @@ const run = async () => {
     }
 
     // 3. Give the user the game (Simulate Purchase)
-    if (!user.library.includes(game._id)) {
-        user.library.push(game._id);
+    if (!user.library.includes(game._id as any)) {
+        user.library.push(game._id as any);
         await user.save();
         console.log("✅ Added game to user library.");
     } else {
@@ -43,7 +43,7 @@ const run = async () => {
     // 4. Generate the Auth Token (The Master Key)
     const token = jwt.sign(
         { id: user._id, role: user.role },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET as string,
         { expiresIn: '30d' }
     );
 

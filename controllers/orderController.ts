@@ -45,7 +45,7 @@ export const purchaseGame = async (req: Request, res: Response) => {
     }
 
     user.walletBalance -= game.price;
-    user.library.push(game._id);
+    user.library.push(game._id as any);
     await user.save();
 
     await Order.create({

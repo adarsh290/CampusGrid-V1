@@ -947,7 +947,7 @@ const Admin = () => {
                   value={formData.localFilePath}
                   onChange={(e) => setFormData({ ...formData, localFilePath: e.target.value })}
                         className="bg-slate-800 border-slate-700 text-slate-100"
-                  placeholder="D:/CampusGames/cyberpunk.zip"
+                  placeholder="/storage/cyberpunk.zip"
                   required
                 />
               </div>

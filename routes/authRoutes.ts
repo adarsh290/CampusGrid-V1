@@ -1,27 +1,122 @@
-import { body, validationResult } from 'express-validator';
-import { signup, login, getMe, getAllUsers, addFunds } from '../controllers/authController.js';
+import express from 'express';
+import { body } from 'express-validator';
+import { signup, login, getMe } from '../controllers/authController.js';
 import { auth } from '../middleware/auth.js';
-import { admin } from '../middleware/admin.js';
 
 const router = express.Router();
 
-
 const signupValidation = [
-  body('username').isString().notEmpty(),
-  body('email').isEmail(),
-  body('password').isLength({ min: 6 })
+  body('username').isString().notEmpty().withMessage('Username is required'),
+  body('email').isEmail().withMessage('A valid email is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ];
 
 const loginValidation = [
-  body('email').isEmail(),
-  body('password').notEmpty()
+  body('email').isEmail().withMessage('A valid email is required'),
+  body('password').notEmpty().withMessage('Password is required'),
 ];
 
+/**
+ * @openapi
+ * /auth/signup:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Register a new user account
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, email, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: gamer123
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: gamer@example.com
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: secret123
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token: { type: string }
+ *                 user: { $ref: '#/components/schemas/User' }
+ *       400:
+ *         description: Validation error or user already exists
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/signup', signupValidation, signup);
+
+/**
+ * @openapi
+ * /auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log in and receive a JWT token
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: gamer@example.com
+ *               password:
+ *                 type: string
+ *                 example: secret123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token: { type: string }
+ *                 user: { $ref: '#/components/schemas/User' }
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/login', loginValidation, login);
+
+/**
+ * @openapi
+ * /auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get the currently authenticated user's profile
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user data
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/User' }
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/me', auth, getMe);
 
 export default router;
-
-
-

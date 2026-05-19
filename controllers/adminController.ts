@@ -79,7 +79,7 @@ export const getRevenue = async (req: Request, res: Response) => {
       },
     ]);
 
-    const recentTransactions: IOrder[] = await Order.find()
+    const recentTransactions = await Order.find()
       .sort({ createdAt: -1 })
       .limit(20)
       .select('username gameTitle price createdAt')
@@ -90,7 +90,7 @@ export const getRevenue = async (req: Request, res: Response) => {
     res.json({
       totalRevenue: stats.totalRevenue || 0,
       totalGamesSold: stats.totalGamesSold || 0,
-      recentTransactions: recentTransactions.map(order => ({
+      recentTransactions: (recentTransactions as any[]).map(order => ({
         userName: order.username,
         gameName: order.gameTitle,
         price: order.price,
@@ -109,12 +109,12 @@ export const getLogs = async (req: Request, res: Response) => {
   try {
     const { type } = req.query;
 
-    const query: Partial<IAuditLog> = {};
+    const query: any = {};
     if (type && (type === 'PURCHASE' || type === 'TOP_UP')) {
       query.type = type;
     }
 
-    const logs: IAuditLog[] = await AuditLog.find(query)
+    const logs = await AuditLog.find(query)
       .sort({ createdAt: -1 })
       .limit(100)
       .lean();

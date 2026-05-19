@@ -4,13 +4,11 @@ FROM node:18-alpine as builder
 # Set the working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and bun.lockb (or package-lock.json)
+# Copy package.json and lock file
 COPY package*.json ./
-COPY bun.lockb ./
 
-# Install dependencies
-# Using bun for potentially faster installs if bun.lockb is present
-RUN if [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile; else npm install; fi
+# Install dependencies using npm
+RUN npm install
 
 # Copy the rest of the frontend source code
 COPY . .

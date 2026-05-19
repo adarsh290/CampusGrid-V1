@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
-import { IUser } from './User.ts';
-import { IGame } from './Game.ts';
+import { IUser } from './User.js';
+import { IGame } from './Game.js';
 
 export interface IAuditLog extends Document {
   type: 'PURCHASE' | 'TOP_UP';

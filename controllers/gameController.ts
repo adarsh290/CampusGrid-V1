@@ -119,7 +119,7 @@ export const getDownloadToken = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { gameId, userId },
-      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      process.env.JWT_SECRET as string,
       { expiresIn: '5m' }
     );
 

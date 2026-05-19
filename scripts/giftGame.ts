@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from './models/User.js';
-import Game from './models/Game.js';
+import User from '../models/User.js';
+import Game from '../models/Game.js';
 
 dotenv.config();
 
@@ -12,7 +12,7 @@ const TARGET_EMAIL = "as0654224@gmail.com"; // <--- CHANGE THIS if you used a di
 
 const run = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI as string);
     console.log("Connected to DB...");
 
     // 1. Find the User
@@ -32,10 +32,10 @@ const run = async () => {
 
     // 3. Add Game to Library
     // Check if they already own it to avoid duplicates
-    if (user.library.includes(game._id)) {
+    if (user.library.includes(game._id as any)) {
         console.log("⚠️ This user already owns this game.");
     } else {
-        user.library.push(game._id);
+        user.library.push(game._id as any);
         await user.save();
         console.log(`🎉 SUCCESS! Added '${game.title}' to ${user.username}'s library.`);
     }

@@ -1,14 +1,14 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 // IMPORTANT: In this mode, we MUST add the .js extension to imports
-import Game from './models/Game.js'; 
+import Game from '../models/Game.js'; 
 
 dotenv.config();
 
 const run = async () => {
   try {
     // 1. Connect to Database
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI as string);
     console.log("✅ Connected to Database");
 
     // 2. Clear old data
@@ -21,7 +21,7 @@ const run = async () => {
       price: 0,
       genre: "Debug",
       coverImage: "https://placehold.co/600x400",
-      localFilePath: "test.txt" // This must match the file inside D:/CampusGames/
+      localFilePath: "test.txt" // This must match the file inside ./storage/ on your host
     });
 
     console.log("✅ Game Added to Menu!");

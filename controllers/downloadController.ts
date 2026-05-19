@@ -38,7 +38,7 @@ export const getDownloadToken = async (req: Request, res: Response) => {
     // Generate short-lived JWT token (1 minute expiry)
     const token = jwt.sign(
       { gameId, userId },
-      process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      process.env.JWT_SECRET as string,
       { expiresIn: '1m' }
     );
 
@@ -71,7 +71,7 @@ export const executeDownload = async (req: Request, res: Response) => {
     try {
       decoded = jwt.verify(
         token,
-        process.env.JWT_SECRET || 'your-secret-key-change-in-production'
+        process.env.JWT_SECRET as string
       ) as DownloadTokenPayload;
     } catch (error: any) {
       if (error.name === 'TokenExpiredError') {

@@ -1,12 +1,9 @@
 import { IUser } from '../../models/User.js';
 
-// to make the file a module and avoid the TypeScript error
-export {}
-
-declare global {
-  namespace Express {
-    export interface Request {
-      user?: IUser;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: IUser;
   }
 }
+
+export {};

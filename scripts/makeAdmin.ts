@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from './models/User.js';
+import User from '../models/User.js';
 
 dotenv.config();
 
@@ -8,7 +8,7 @@ const TARGET_EMAIL = "as0654224@gmail.com"; // <--- PUT YOUR EMAIL HERE
 
 const run = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI as string);
     console.log("Connected to DB...");
 
     const user = await User.findOne({ email: TARGET_EMAIL });

@@ -22,11 +22,15 @@ RUN npm prune --production
 # Stage 2: Production image
 FROM node:18-alpine
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 WORKDIR /usr/src/app
 
-# Copy production node_modules and built app from the builder stage
+# Copy production node_modules, built app, and package.json from the builder stage
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/package.json ./package.json
 
 # Expose port 5000
 EXPOSE 5000

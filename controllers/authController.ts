@@ -1,3 +1,4 @@
+import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
@@ -5,7 +6,7 @@ import User, { IUser } from '../models/User.js';
 
 // Generate JWT Token
 const generateToken = (id: mongoose.Types.ObjectId): string => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key-change-in-production', {
+  return jwt.sign({ id }, process.env.JWT_SECRET as string, {
     expiresIn: '30d',
   });
 };

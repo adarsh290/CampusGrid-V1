@@ -1,0 +1,7 @@
+node_modules
+dist
+build
+.git
+bun.lockb
+package-lock.json
+*.min.js

@@ -102,7 +102,7 @@ npm run server:dev
     "price": 59.99,
     "coverImage": "https://example.com/cover.jpg",
     "genre": "RPG",
-    "localFilePath": "D:/CampusGames/cyberpunk.zip"
+    "localFilePath": "/storage/cyberpunk.zip"
   }
   ```
 - `PUT /api/games/:id` - Update game (admin only)
@@ -159,7 +159,7 @@ Headers: Authorization: Bearer <admin_token>
   "price": 29.99,
   "coverImage": "https://example.com/cover.jpg",
   "genre": "Action",
-  "localFilePath": "D:/CampusGames/test-game.zip"
+  "localFilePath": "/storage/test-game.zip"
 }
 ```
 
@@ -179,7 +179,7 @@ Headers: Authorization: Bearer <user_token>
 
 ## ⚠️ Important Notes
 
-1. **File Paths**: When adding games, use absolute paths like `D:/CampusGames/game.zip`
+1. **File Paths**: When adding games, use absolute paths like `/storage/game.zip`
 2. **JWT Secret**: Change the default JWT_SECRET in production
 3. **CORS**: Update FRONTEND_URL in `.env` for production
 4. **MongoDB**: Ensure MongoDB is running before starting the server

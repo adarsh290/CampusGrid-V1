@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { IGame } from './Game.ts'; // Assuming Game.ts exports an IGame interface
+import { IGame } from './Game.js'; // Assuming Game.js exports an IGame interface
 
 // Interface for User methods
 export interface IUserMethods {
