@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import User, { IUser } from '../models/User.js';
 import Order, { IOrder } from '../models/Order.js';
 import AuditLog, { IAuditLog } from '../models/AuditLog.js';
@@ -9,9 +10,9 @@ import AuditLog, { IAuditLog } from '../models/AuditLog.js';
 export const topUpUser = async (req: Request, res: Response) => {
   try {
     const { userId, amount } = req.body;
-    
+
     if (!req.user) {
-        return res.status(401).json({ message: 'Not authorized' });
+      return res.status(401).json({ message: 'Not authorized' });
     }
 
     if (!userId || !amount) {
@@ -22,15 +23,21 @@ export const topUpUser = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Amount must be positive' });
     }
 
-    const user: IUser | null = await User.findById(userId);
+    // Bug 15 fixed: validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
 
-    if (!user) {
+    const userExists: IUser | null = await User.findById(userId);
+
+    if (!userExists) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     const adminUser: IUser | null = await User.findById(req.user._id);
     const adminName = adminUser ? adminUser.username : 'Unknown';
 
+    // Use atomic $inc (already correct in original, kept)
     const updatedUser: IUser | null = await User.findByIdAndUpdate(
       userId,
       { $inc: { walletBalance: amount } },
@@ -38,7 +45,7 @@ export const topUpUser = async (req: Request, res: Response) => {
     ).select('-password');
 
     if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found after update' });
+      return res.status(404).json({ message: 'User not found after update' });
     }
 
     await AuditLog.create({

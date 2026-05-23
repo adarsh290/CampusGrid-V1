@@ -3,7 +3,6 @@ import { body, validationResult } from 'express-validator';
 import {
   getGames,
   getGame,
-  getDownloadToken,
   createGame,
   updateGame,
   deleteGame,
@@ -11,6 +10,9 @@ import {
 } from '../controllers/gameController.js';
 import { auth } from '../middleware/auth.js';
 import { admin } from '../middleware/admin.js';
+
+// Bug 19 fixed: removed getDownloadToken import — it now lives exclusively
+// in downloadController and is served via /api/download/token/:gameId
 
 const router = express.Router();
 
@@ -83,35 +85,6 @@ router.get('/search', searchGames);
  *               items: { $ref: '#/components/schemas/Game' }
  */
 router.get('/', getGames);
-
-/**
- * @openapi
- * /games/{id}/token:
- *   get:
- *     tags: [Games]
- *     summary: Get a short-lived download token for an owned game
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Download token
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token: { type: string }
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: User does not own this game
- */
-router.get('/:id/token', auth, getDownloadToken);
 
 /**
  * @openapi

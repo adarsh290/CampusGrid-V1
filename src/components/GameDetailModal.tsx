@@ -2,9 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Game } from "@/data/games";
-import { Star, HardDrive, Calendar, Building, Monitor, Cpu, MemoryStick, CircuitBoard, X } from "lucide-react";
-import { TokenRedemption } from "./TokenRedemption";
+// Bug 13 fixed: import Game from @/types (live API type), not from @/data/games (old mock type)
+import { Game } from "@/types";
+import { HardDrive, Calendar, Building, Monitor, Cpu, MemoryStick, CircuitBoard, X } from "lucide-react";
 
 interface GameDetailModalProps {
   game: Game | null;
@@ -15,18 +15,27 @@ interface GameDetailModalProps {
 export function GameDetailModal({ game, open, onClose }: GameDetailModalProps) {
   if (!game) return null;
 
+  // The live Game type uses a flat systemRequirements object (not min/recommended split).
+  // Render it accordingly.
+  const hasSystemRequirements =
+    game.systemRequirements &&
+    typeof game.systemRequirements === "object" &&
+    Object.values(game.systemRequirements).some(
+      (v: any) => v && typeof v === "string" && v.trim() !== ""
+    );
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto glass-card border-border/50 p-0">
         {/* Hero Image */}
         <div className="relative h-64 overflow-hidden">
           <img
-            src={game.heroImage || game.coverImage}
+            src={game.coverImage}
             alt={game.title}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/50 to-transparent" />
-          
+
           {/* Close Button */}
           <button
             onClick={onClose}
@@ -45,29 +54,26 @@ export function GameDetailModal({ game, open, onClose }: GameDetailModalProps) {
         <div className="p-6">
           {/* Meta Info */}
           <div className="flex flex-wrap gap-4 mb-6">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-              <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-              <span className="font-medium">{game.rating} / 5</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-              <HardDrive className="h-4 w-4 text-accent" />
-              <span className="font-medium">{game.fileSize}</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-              <Calendar className="h-4 w-4 text-primary" />
-              <span className="font-medium">{game.releaseYear}</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
-              <Building className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{game.developer}</span>
-            </div>
+            {game.developer && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{game.developer}</span>
+              </div>
+            )}
+            {game.createdAt && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50">
+                <Calendar className="h-4 w-4 text-primary" />
+                <span className="font-medium">{new Date(game.createdAt).getFullYear()}</span>
+              </div>
+            )}
           </div>
 
           <Tabs defaultValue="about" className="w-full">
             <TabsList className="w-full bg-secondary/50 mb-4">
               <TabsTrigger value="about" className="flex-1">About</TabsTrigger>
-              <TabsTrigger value="requirements" className="flex-1">Requirements</TabsTrigger>
-              <TabsTrigger value="purchase" className="flex-1">Purchase</TabsTrigger>
+              {hasSystemRequirements && (
+                <TabsTrigger value="requirements" className="flex-1">Requirements</TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="about" className="space-y-4">
@@ -77,37 +83,31 @@ export function GameDetailModal({ game, open, onClose }: GameDetailModalProps) {
               </div>
             </TabsContent>
 
-            <TabsContent value="requirements" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Minimum */}
+            {hasSystemRequirements && (
+              <TabsContent value="requirements" className="space-y-4">
+                {/* Flat system requirements (API format) */}
                 <div className="p-4 rounded-xl bg-secondary/30 border border-border/50">
-                  <h4 className="font-semibold text-primary mb-4">Minimum Requirements</h4>
+                  <h4 className="font-semibold text-primary mb-4">System Requirements</h4>
                   <div className="space-y-3">
-                    <RequirementRow icon={Monitor} label="OS" value={game.systemRequirements.minimum.os} />
-                    <RequirementRow icon={Cpu} label="CPU" value={game.systemRequirements.minimum.processor} />
-                    <RequirementRow icon={MemoryStick} label="RAM" value={game.systemRequirements.minimum.memory} />
-                    <RequirementRow icon={CircuitBoard} label="GPU" value={game.systemRequirements.minimum.graphics} />
-                    <RequirementRow icon={HardDrive} label="Storage" value={game.systemRequirements.minimum.storage} />
+                    {game.systemRequirements?.os && (
+                      <RequirementRow icon={Monitor} label="OS" value={game.systemRequirements.os} />
+                    )}
+                    {game.systemRequirements?.processor && (
+                      <RequirementRow icon={Cpu} label="CPU" value={game.systemRequirements.processor} />
+                    )}
+                    {game.systemRequirements?.memory && (
+                      <RequirementRow icon={MemoryStick} label="RAM" value={game.systemRequirements.memory} />
+                    )}
+                    {game.systemRequirements?.graphics && (
+                      <RequirementRow icon={CircuitBoard} label="GPU" value={game.systemRequirements.graphics} />
+                    )}
+                    {game.systemRequirements?.storage && (
+                      <RequirementRow icon={HardDrive} label="Storage" value={game.systemRequirements.storage} />
+                    )}
                   </div>
                 </div>
-
-                {/* Recommended */}
-                <div className="p-4 rounded-xl bg-accent/10 border border-accent/30">
-                  <h4 className="font-semibold text-accent mb-4">Recommended</h4>
-                  <div className="space-y-3">
-                    <RequirementRow icon={Monitor} label="OS" value={game.systemRequirements.recommended.os} />
-                    <RequirementRow icon={Cpu} label="CPU" value={game.systemRequirements.recommended.processor} />
-                    <RequirementRow icon={MemoryStick} label="RAM" value={game.systemRequirements.recommended.memory} />
-                    <RequirementRow icon={CircuitBoard} label="GPU" value={game.systemRequirements.recommended.graphics} />
-                    <RequirementRow icon={HardDrive} label="Storage" value={game.systemRequirements.recommended.storage} />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="purchase">
-              <TokenRedemption game={game} />
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </DialogContent>

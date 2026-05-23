@@ -48,12 +48,23 @@ app.use(compression());
 app.use(express.static('public', { maxAge: '1y', immutable: true }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
+// Bug 2 fixed: use an explicit allowlist instead of reflecting any origin.
+// Set ALLOWED_ORIGINS in your .env for production domains.
+const ALLOWED_ORIGINS: string[] = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+// Always allow localhost in development
+if (process.env.NODE_ENV !== 'production') {
+  ALLOWED_ORIGINS.push('http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080');
+}
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
-  } else {
-    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
   }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header(
@@ -61,7 +72,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'Origin, X-Requested-With, Content-Type, Accept, Authorization',
   );
   res.header('Access-Control-Expose-Headers', 'Content-Disposition');
-  res.header('Access-Control-Allow-Credentials', 'true');
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
@@ -70,10 +80,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
+// Bug 23 fixed: auth limiter tightened to 10 attempts per 15 minutes to
+// prevent brute-force attacks. Order limiter kept at 100 (reasonable).
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later.',
+  max: 10,
+  message: 'Too many login attempts from this IP, please try again in 15 minutes.',
   standardHeaders: true,
   legacyHeaders: false,
 });

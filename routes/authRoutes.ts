@@ -1,5 +1,5 @@
 import express from 'express';
-import { body } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 import { signup, login, getMe } from '../controllers/authController.js';
 import { auth } from '../middleware/auth.js';
 
@@ -15,6 +15,19 @@ const loginValidation = [
   body('email').isEmail().withMessage('A valid email is required'),
   body('password').notEmpty().withMessage('Password is required'),
 ];
+
+// Bug 4 fixed: central validation handler — actually reads validationResult
+const handleValidation = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
+  }
+  next();
+};
 
 /**
  * @openapi
@@ -58,7 +71,7 @@ const loginValidation = [
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/signup', signupValidation, signup);
+router.post('/signup', signupValidation, handleValidation, signup);
 
 /**
  * @openapi
@@ -98,7 +111,7 @@ router.post('/signup', signupValidation, signup);
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/login', loginValidation, login);
+router.post('/login', loginValidation, handleValidation, login);
 
 /**
  * @openapi

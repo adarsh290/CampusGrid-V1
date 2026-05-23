@@ -5,58 +5,70 @@ import { LibraryCard } from "@/components/LibraryCard";
 import { Loader2, Gamepad2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 const Library = () => {
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingGameId, setDownloadingGameId] = useState<string | null>(null);
   const { toast } = useToast();
+  // Bug 16/21 fixed: use AuthContext for token instead of manual localStorage reads
+  const { token } = useAuth();
 
-  // 1. FETCH REAL DATA
+  // Bug 21 fixed: use the dedicated /api/orders/library endpoint
   useEffect(() => {
     const fetchLibrary = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) { window.location.href = "/login"; return; }
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
 
       try {
-        const response = await fetch("/api/auth/me", {
-            headers: { 'Authorization': `Bearer ${token}` }
+        const response = await fetch("/api/orders/library", {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        
+
         if (response.ok) {
-            const user = await response.json();
-            // Transform DB data
-            const formattedGames = user.library.map((game: any) => ({
-              ...game,
-              id: game._id,
-            }));
-            setGames(formattedGames);
+          const data = await response.json();
+          // Transform DB data — localFilePath is already stripped by the endpoint
+          const formattedGames = data.library.map((game: any) => ({
+            ...game,
+            id: game._id,
+          }));
+          setGames(formattedGames);
+        } else if (response.status === 401) {
+          window.location.href = "/login";
         }
       } catch (error) {
         console.error("Failed to fetch library:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load your library. Please refresh.",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
+
     fetchLibrary();
-  }, []);
+  }, [token]);
 
   const handleDownload = async (gameId: string) => {
     if (!gameId) {
-      toast({ 
-        title: "Error", 
-        description: "Game ID is missing. Cannot download.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "Game ID is missing. Cannot download.",
+        variant: "destructive",
       });
       return;
     }
 
-    const token = localStorage.getItem('token');
     if (!token) {
-      toast({ 
-        title: "Login Required", 
-        description: "You must be logged in to download games.", 
-        variant: "destructive" 
+      toast({
+        title: "Login Required",
+        description: "You must be logged in to download games.",
+        variant: "destructive",
       });
       return;
     }
@@ -67,31 +79,31 @@ const Library = () => {
     try {
       // Step 1: Get download token from backend
       const tokenResponse = await fetch(`/api/download/token/${gameId}`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json().catch(() => ({ message: 'Failed to generate download token' }));
-        throw new Error(errorData.message || 'Failed to generate download token');
+        const errorData = await tokenResponse.json().catch(() => ({ message: "Failed to generate download token" }));
+        throw new Error(errorData.message || "Failed to generate download token");
       }
 
       const { executionUrl } = await tokenResponse.json();
 
       if (!executionUrl) {
-        throw new Error('No execution URL received from server');
+        throw new Error("No execution URL received from server");
       }
 
       // Step 2: Trigger browser download using window.location.href
       toast({ title: "Download Starting", description: "Your download will begin shortly..." });
       window.location.href = executionUrl;
-      
-    } catch(err: any) {
+
+    } catch (err: any) {
       console.error("Download error:", err);
-      toast({ 
-        title: "Error", 
-        description: err.message || "Could not start download.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: err.message || "Could not start download.",
+        variant: "destructive",
       });
     } finally {
       setDownloadingGameId(null);
@@ -101,7 +113,7 @@ const Library = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-4">
           {/* Header */}

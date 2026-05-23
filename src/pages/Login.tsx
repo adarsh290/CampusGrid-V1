@@ -4,9 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Gamepad2, Mail, Lock } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
   const navigate = useNavigate();
+  // Bug 10 fixed: get login() from AuthContext so in-memory state stays in sync
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -41,10 +44,9 @@ const Login = () => {
         throw new Error(data.message || "Login failed");
       }
 
-      // Save token to localStorage
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+      // Bug 10 fixed: update AuthContext state (not just localStorage)
+      if (data.token && data.user) {
+        login(data.token, data.user);
       }
 
       // Show success toast

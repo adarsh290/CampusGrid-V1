@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Game, { IGame } from '../models/Game.js';
-import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
 
 // @desc    Get all games
 // @route   GET /api/games
@@ -58,7 +57,7 @@ export const searchGames = async (req: Request, res: Response) => {
 
       if (aStartsExact && !bStartsExact) return -1;
       if (!aStartsExact && bStartsExact) return 1;
-      
+
       return a.titleLower.localeCompare(b.titleLower);
     });
 
@@ -75,55 +74,18 @@ export const searchGames = async (req: Request, res: Response) => {
 // @access  Public
 export const getGame = async (req: Request, res: Response) => {
   try {
+    // Bug 15 fixed: validate ObjectId format before querying
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid game ID format' });
+    }
+
     const game = await Game.findById(req.params.id).select('-localFilePath');
-    
+
     if (!game) {
       return res.status(404).json({ message: 'Game not found' });
     }
 
     res.json(game);
-  } catch (error: any) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get download token (DRM)
-// @route   GET /api/games/:id/token
-// @access  Private
-export const getDownloadToken = async (req: Request, res: Response) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-
-    const gameId = req.params.id;
-    const userId = req.user._id;
-
-    const game = await Game.findById(gameId);
-    if (!game) {
-      return res.status(404).json({ message: 'Game not found' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const ownsGame = user.library.some(
-      (libGameId) => libGameId.toString() === gameId
-    );
-
-    if (!ownsGame) {
-      return res.status(403).json({ message: 'You do not own this game' });
-    }
-
-    const token = jwt.sign(
-      { gameId, userId },
-      process.env.JWT_SECRET as string,
-      { expiresIn: '5m' }
-    );
-
-    res.json({ token });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -175,8 +137,13 @@ export const createGame = async (req: Request, res: Response) => {
 // @desc    Update game (Admin only)
 // @route   PUT /api/games/:id
 // @access  Private/Admin
-export const updateGame = async (req: Request, res: Response) => { 
+export const updateGame = async (req: Request, res: Response) => {
   try {
+    // Bug 15 fixed: validate ObjectId format before querying
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid game ID format' });
+    }
+
     const game = await Game.findById(req.params.id).select('+localFilePath');
 
     if (!game) {
@@ -192,13 +159,13 @@ export const updateGame = async (req: Request, res: Response) => {
     if (coverImage !== undefined) game.coverImage = coverImage;
     if (genre !== undefined) game.genre = genre;
     if (localFilePath !== undefined) game.localFilePath = localFilePath;
-    
+
     if (screenshots !== undefined) {
       game.screenshots = (Array.isArray(screenshots) && screenshots.length > 0) ? screenshots : [];
     }
-    
+
     if (systemRequirements !== undefined && typeof systemRequirements === 'object') {
-        game.systemRequirements = systemRequirements;
+      game.systemRequirements = systemRequirements;
     }
 
     await game.save();
@@ -217,6 +184,11 @@ export const updateGame = async (req: Request, res: Response) => {
 // @access  Private/Admin
 export const deleteGame = async (req: Request, res: Response) => {
   try {
+    // Bug 15 fixed: validate ObjectId format before querying
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid game ID format' });
+    }
+
     const game = await Game.findById(req.params.id);
 
     if (!game) {

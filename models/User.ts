@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { IGame } from './Game.js'; // Assuming Game.js exports an IGame interface
+import { IGame } from './Game.js';
 
 // Interface for User methods
 export interface IUserMethods {
@@ -15,7 +15,6 @@ export interface IUser extends Document, IUserMethods {
   role: 'admin' | 'user';
   library: mongoose.Types.ObjectId[] | IGame[];
   walletBalance: number;
-  wallet: number; // This seems redundant with walletBalance, but keeping it per original schema
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,11 +58,7 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>({
     default: 0,
     min: [0, 'Wallet balance cannot be negative'],
   },
-  wallet: {
-    type: Number,
-    default: 0,
-    min: [0, 'Wallet balance cannot be negative'],
-  },
+  // Bug 7 fixed: removed duplicate 'wallet' field
 }, {
   timestamps: true,
 });
@@ -73,7 +68,7 @@ userSchema.pre<IUser>('save', async function(next) {
   if (!this.isModified('password')) {
     return next();
   }
-  
+
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();

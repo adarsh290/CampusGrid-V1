@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Define the shape of the user object (if using TypeScript)
-interface User {
+// Bug 20 fixed: User interface now includes all fields the backend actually returns
+export interface User {
   id: string;
+  username: string;
   email: string;
-  role: string;
+  role: 'admin' | 'user';
+  walletBalance: number;
+  library: string[];
 }
 
 interface AuthContextType {
@@ -12,7 +15,7 @@ interface AuthContextType {
   token: string | null;
   login: (token: string, userData: User) => void;
   logout: () => void;
-  loading: boolean; // <--- NEW: We expose this status
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +23,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  // NEW: Start as TRUE (we are loading by default)
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,11 +31,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedUser = localStorage.getItem('user');
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch {
+        // Corrupt storage — clear it
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
-    
-    // CRITICAL: Tell the app "We are done checking"
+
+    // Tell the app "We are done checking"
     setLoading(false);
   }, []);
 

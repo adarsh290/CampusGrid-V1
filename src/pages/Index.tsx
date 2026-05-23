@@ -108,8 +108,8 @@ const Index = () => {
                     key={game.id || game._id}
                     game={game}
                     onViewDetails={() => {
-                      const gameSlug = game.title.toLowerCase().replace(/ /g, "-");
-                      navigate(`/explore/${gameSlug}`);
+                      // Bug 9 fixed: navigate by _id for O(1) lookup instead of slug scan
+                      navigate(`/explore/${game._id || game.id}`);
                     }}
                   />
                 ))}

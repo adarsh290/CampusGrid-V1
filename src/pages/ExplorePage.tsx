@@ -4,44 +4,45 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Download, ArrowLeft, IndianRupee, Calendar, User as UserIcon } from "lucide-react";
-import { Game, User } from "@/types";
+import { Game } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/AuthContext";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 const ExplorePage = () => {
-  const { gameSlug } = useParams<{ gameSlug: string }>();
+  // Bug 9 fixed: route param is now gameId (a MongoDB _id), not a slug
+  const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, token, login } = useAuth();
+
   const [game, setGame] = useState<Game | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     const fetchGame = async () => {
-      try {
-        // Fetch all games and find the one matching the slug
-        const response = await fetch("/api/games");
-        const games = await response.json();
-        
-        const foundGame = games.find((g: Game) => {
-          const slug = g.title.toLowerCase().replace(/ /g, '-');
-          return slug === gameSlug;
-        });
+      if (!gameId) return;
 
-        if (foundGame) {
-          setGame({
-            ...foundGame,
-            id: foundGame._id,
-          });
-        } else {
+      try {
+        // Bug 9 fixed: directly fetch the single game by ID — O(1) instead of O(N)
+        const response = await fetch(`/api/games/${gameId}`);
+
+        if (!response.ok) {
           toast({
             title: "Game not found",
             description: "The game you're looking for doesn't exist.",
             variant: "destructive",
           });
           navigate("/");
+          return;
         }
+
+        const foundGame = await response.json();
+        setGame({
+          ...foundGame,
+          id: foundGame._id,
+        });
       } catch (error) {
         console.error("Failed to fetch game:", error);
         toast({
@@ -54,45 +55,17 @@ const ExplorePage = () => {
       }
     };
 
-    const fetchCurrentUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setCurrentUser(null);
-        return;
-      }
+    fetchGame();
+  }, [gameId, navigate, toast]);
 
-      try {
-        const response = await fetch("/api/auth/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setCurrentUser(data);
-          localStorage.setItem("user", JSON.stringify(data));
-        }
-      } catch (error) {
-        console.error("Failed to fetch current user:", error);
-      }
-    };
-
-    if (gameSlug) {
-      fetchGame();
-      fetchCurrentUser();
-    }
-  }, [gameSlug, navigate, toast]);
-
-  const isOwned = currentUser?.library?.some((g: any) => {
-    const gameId = typeof g === 'string' ? g : (g._id || g.id);
-    return gameId === (game?._id || game?.id);
+  // Bug 11 fixed: use AuthContext for current user — no manual localStorage reads
+  const isOwned = user?.library?.some((g: any) => {
+    const libGameId = typeof g === 'string' ? g : (g._id || g.id);
+    return libGameId === (game?._id || game?.id);
   }) || false;
 
   const handleBuy = async () => {
-    const authToken = localStorage.getItem('token');
-    
-    if (!authToken) {
+    if (!token) {
       toast({
         title: "Login Required",
         description: "You must be logged in to purchase games.",
@@ -104,11 +77,11 @@ const ExplorePage = () => {
 
     if (!game) return;
 
-    const gameId = game._id || game.id;
-    if (!gameId) return;
+    const currentGameId = game._id || game.id;
+    if (!currentGameId) return;
 
     // Check wallet balance
-    if (currentUser && currentUser.walletBalance < game.price) {
+    if (user && user.walletBalance < game.price) {
       toast({
         title: "Insufficient Funds",
         description: "You don't have enough balance to purchase this game.",
@@ -124,34 +97,25 @@ const ExplorePage = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ gameId }),
+        body: JSON.stringify({ gameId: currentGameId }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.message === "Insufficient Funds") {
-          toast({
-            title: "Insufficient Funds",
-            description: "You don't have enough balance to purchase this game.",
-            variant: "destructive",
-          });
-        } else {
-          throw new Error(data.message || "Purchase failed");
-        }
-        return;
+        throw new Error(data.message || "Purchase failed");
       }
 
-      // Update local storage
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        user.walletBalance = data.walletBalance;
-        user.library = data.library.map((g: any) => g._id || g.id);
-        localStorage.setItem("user", JSON.stringify(user));
-        setCurrentUser(user);
+      // Update AuthContext so wallet balance and library reflect immediately
+      if (user) {
+        const updatedUser = {
+          ...user,
+          walletBalance: data.walletBalance,
+          library: data.library.map((g: any) => g._id || g.id || g),
+        };
+        login(token, updatedUser);
       }
 
       toast({
@@ -198,17 +162,17 @@ const ExplorePage = () => {
 
   // Check if screenshots exist and are valid
   const hasScreenshots = game.screenshots && Array.isArray(game.screenshots) && game.screenshots.length > 0;
-  const screenshots = hasScreenshots ? game.screenshots : [];
+  const screenshots = hasScreenshots ? game.screenshots! : [];
 
   // Check if systemRequirements exist and have at least one non-empty field
-  const hasSystemRequirements = game.systemRequirements && 
+  const hasSystemRequirements = game.systemRequirements &&
     typeof game.systemRequirements === 'object' &&
     Object.values(game.systemRequirements).some((val: any) => val && typeof val === 'string' && val.trim() !== '');
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="pt-24 pb-12">
         <div className="container mx-auto px-4">
           <Button
@@ -235,7 +199,9 @@ const ExplorePage = () => {
                             alt={`${game.title} screenshot ${index + 1}`}
                             className="w-full h-[500px] object-cover rounded-lg"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = game.coverImage;
+                              if (game.coverImage) {
+                                (e.target as HTMLImageElement).src = game.coverImage;
+                              }
                             }}
                           />
                         </CarouselItem>
@@ -313,7 +279,8 @@ const ExplorePage = () => {
                     alt={game.title}
                     className="w-full rounded-lg mb-4"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://via.placeholder.com/300x400?text=No+Image";
+                      (e.target as HTMLImageElement).src =
+                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='400' viewBox='0 0 300 400'%3E%3Crect width='300' height='400' fill='%23374151'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239CA3AF' font-size='16'%3ENo Image%3C/text%3E%3C/svg%3E";
                     }}
                   />
 
@@ -385,4 +352,3 @@ const ExplorePage = () => {
 };
 
 export default ExplorePage;
-
